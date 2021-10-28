@@ -1,0 +1,59 @@
+{{- if .Values.mysql.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "media-wiki-demo.fullname" . }}-mysql
+spec:
+  selector:
+    matchLabels:
+      {{- include "media-wiki-demo.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "media-wiki-demo.fullname" . }}-mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        {{- include "media-wiki-demo.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-mysql
+        image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag | default 5.7 }}"
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-mysql-secrets
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-mysql-secrets
+              key: MYSQL_DATABASE
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-mysql-secrets
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-mysql-secrets
+              key: MYSQL_PASSWORD
+        ports:
+        - name: mysql
+          containerPort: {{ .Values.mysql.service.port }}
+        volumeMounts:
+        - name: {{ .Chart.Name }}-data
+          mountPath: /var/lib/mysql
+          subPath: mysql
+        resources: {{ toYaml .Values.mysql.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ .Chart.Name }}-data
+    spec: {{ toYaml .Values.mysql.volumeClaimTemplate | nindent 6 }}
+{{- end }}
